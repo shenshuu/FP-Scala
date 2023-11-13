@@ -12,6 +12,24 @@ def empty[A] : Stream[A] = Empty
 def apply[A](as : A*) : Stream[A] =
     if (as.isEmpty) empty else cons(as.head, apply(as.tail : _*))
 
+def unfold[A,S](z : S)(f : S => Option[(A,S)]) : Stream[A] =
+    f(z) match {
+        case Some((h,s)) => cons(h, unfold(s)(f))
+        case None => empty
+    }
+
+def constant[A](a : A) : Stream[A] =
+    unfold(a)(s => Some((a, a)))
+
+def ones() : Stream[Int] =
+    unfold(1)(s => Some(1,1))
+
+def from(n : Int) : Stream[Int] =
+    unfold(n)(x => Some(x, x+1))
+
+def fibs() : Stream[Int] =
+    unfold((0,1))((x,y) => Some(x, (y,x+y)))
+
 trait Stream[+A] {
     def toList : List[A] =
         @annotation.tailrec
@@ -23,10 +41,9 @@ trait Stream[+A] {
         helper(this, Nil)
 
     def take(n : Int) : Stream[A] =
-        this match {
-            case Cons(h,t) if n > 1 => cons(h(), t().take(n-1))
-            case Cons(h,t) if n == 1 => cons(h(), empty)
-            case _ => empty
+        unfold(this) {
+            case Cons(h,t) if n >= 1 => Some((h(), t().take(n-1)))
+            case _ => None
         }
             
     def drop(n : Int) : Stream[A] =
@@ -37,7 +54,10 @@ trait Stream[+A] {
         }
 
     def takeWhile(p : A => Boolean) : Stream[A] =
-        foldRight(empty)((a,b) => if (p(a)) cons(a,b) else empty)
+        unfold(this) {
+            case Cons(h,t) if p(h()) => Some((h(), t()))
+            case _ => None
+        }        
 
     def foldRight[B](z : => B)(f : (A, => B) => B) : B =
         this match {
@@ -49,7 +69,10 @@ trait Stream[+A] {
         foldRight(true)((a,b) => p(a) && b)
 
     def map[B](f : A => B) : Stream[B] =
-        foldRight(empty)((a,b) => cons(f(a), b))
+        unfold(this) {
+            case Cons(h,t) => Some((f(h()), t()))
+            case Empty => None
+        }
 
     def filter(f : A => Boolean) : Stream[A] =
         foldRight(empty)((a,b) => if (f(a)) cons(a,b) else b)
@@ -59,15 +82,8 @@ trait Stream[+A] {
 
     def flatMap[B >: A](f : B => Stream[B]) : Stream[B] =
         foldRight(empty)((a,b) => f(a).append(b))
+
 }
 
 def main(args : Array[String]) : Unit =
-    val s = Stream(2,2,4,1,3)
-    val t = Stream(1,23,3,1,3)
-    println(s.take(3).drop(2).toList)
-    println(s.takeWhile(x => x % 2 == 0).toList)
-    println(s.forall(x => x % 2 == 0))
-    println(s.map(x => x + 1).toList)
-    println(s.filter(x => x % 2 != 0).toList)
-    println(s.append(t).toList)
-    println(s.flatMap(x => Stream(x+1, x+2, x+3)).toList)
+    println(constant(1).take(5).map(x => x + 1).takeWhile(x => x % 2 != 0).toList)

@@ -12,6 +12,23 @@ def empty[A] : Stream[A] = Empty
 def apply[A](as : A*) : Stream[A] =
     if (as.isEmpty) empty else cons(as.head, apply(as.tail : _*))
 
+def unfold[A,S](z : S)(f : S => Option[(A,S)]) : Stream[A] =
+    f(z) match {
+        case Some((h,s)) => cons(h, unfold(s)(f))
+        case None => empty
+    }
+
+def constant[A](a : A) : Stream[A] =
+    cons(a, constant(a))
+
+def from(n : Int) : Stream[Int] =
+    cons(n, from(n+1))
+
+def fibs() : Stream[Int] =
+    def helper(x : Int, y : Int) : Stream[Int] =
+        cons(x, helper(y, x+y))
+    helper(0,1)
+
 trait Stream[+A] {
     def toList : List[A] =
         @annotation.tailrec
@@ -62,12 +79,4 @@ trait Stream[+A] {
 }
 
 def main(args : Array[String]) : Unit =
-    val s = Stream(2,2,4,1,3)
-    val t = Stream(1,23,3,1,3)
-    println(s.take(3).drop(2).toList)
-    println(s.takeWhile(x => x % 2 == 0).toList)
-    println(s.forall(x => x % 2 == 0))
-    println(s.map(x => x + 1).toList)
-    println(s.filter(x => x % 2 != 0).toList)
-    println(s.append(t).toList)
-    println(s.flatMap(x => Stream(x+1, x+2, x+3)).toList)
+    println(fibs().take(10).toList)
